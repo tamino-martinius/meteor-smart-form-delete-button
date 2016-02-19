@@ -4,7 +4,7 @@ Template.quickRemoveButton.helpers({
     for (var prop in context) {
       if (context.hasOwnProperty(prop) &&
           prop !== "_id" &&
-          prop !== "collection" &&
+          prop !== "model" &&
           prop !== "onError" &&
           prop !== "onSuccess" &&
           prop !== "beforeRemove") {
@@ -21,33 +21,23 @@ Template.quickRemoveButton.helpers({
 Template.quickRemoveButton.events({
   'click button': function (event, template) {
     var self = this;
-    var collection = lookup(self.collection);
-    if (typeof Meteor !== "undefined" && Meteor.Collection) {
-      if (!(collection instanceof Meteor.Collection)) {
-        throw new Error("quickRemoveButton: collection attribute must be set to a Meteor.Collection instance or a string reference to a Meteor.Collection instance that is in the window scope.");
-      }
-    } else if (typeof Mongo !== "undefined" && Mongo.Collection) {
-      if (!(collection instanceof Mongo.Collection)) {
-        throw new Error("quickRemoveButton: collection attribute must be set to a Mongo.Collection instance or a string reference to a Mongo.Collection instance that is in the window scope.");
-      }
+    var model = lookup(self.model);
+    if (!model || !model.__isSmartModel) {
+      throw new Error("quickRemoveButton: model attribute must be set to a SmartModel instance or a string reference to a SmartModel instance that is in the window scope.");
     }
     var onError = self.onError || function (error) {
       alert("Delete failed");
       console.log(error);
     };
+    var doc = model.find({_id: self._id});
     var onSuccess = self.onSuccess || function () {};
     var beforeRemove = self.beforeRemove || function () { this.remove(); };
-    beforeRemove.call({
-      remove: function () {
-        collection.remove(self._id, function (error, result) {
-          if (error) {
-            onError(error);
-          } else {
-            onSuccess(result);
-          }
-        });
-      }
-    }, collection, self._id);
+    doc.destroy();
+    if (doc.isValid) {
+      onSuccess(doc);
+    } else {
+      onError(doc.errors);
+    }
   }
 });
 
